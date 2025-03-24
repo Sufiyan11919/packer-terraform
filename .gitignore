@@ -13,3 +13,6 @@
 .terraform.lock.hcl
 terraform.tfstate
 terraform.tfstate.*
+
+#build
+build.log
