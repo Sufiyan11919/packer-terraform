@@ -90,11 +90,3 @@ chmod +x run_all.sh
 | 💻 | Final terminal result (AMI created & infra deployed) | ![Final Result](https://github.com/Sufiyan11919/packer-terraform/blob/main/screenshots/terminal_final_result.png) |
 | ☁️ | AWS EC2 Instances created | ![Instances](https://github.com/Sufiyan11919/packer-terraform/blob/main/screenshots/instances.png) |
 
----
-
-Happy automating! 😄
-```
-
----
-
-You can copy and paste this directly into your `README.md`. Let me know if you’d like to add a "Destroy Infrastructure" section or extra usage notes!
