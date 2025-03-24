@@ -22,9 +22,8 @@ fi
 
 echo "[INFO] Running Packer build..."
 cd "${PACKER_DIR}"
-packer init amazon-linux-ami.json
-packer validate amazon-linux-ami.json
-packer build amazon-linux-ami.json | tee build.log
+packer validate amazon-linux-docker.json
+packer build amazon-linux-docker.json | tee build.log
 AMI_ID=$(grep -Eo 'ami-[0-9a-f]{17}' build.log | tail -1)
 echo "[INFO] Created AMI: ${AMI_ID}"
 
