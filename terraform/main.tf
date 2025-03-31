@@ -1,3 +1,6 @@
+#######################################
+# Provider & VPC Module (existing code)
+#######################################
 provider "aws" {
   region = var.region
 }
@@ -19,13 +22,50 @@ module "my_vpc" {
   enable_dns_support   = true
 }
 
-# ✅ Security group for the bastion
-resource "aws_security_group" "sg_bastion" {
-  name        = "bastion-sg"  # ✅ FIXED: can't start with sg-
-  description = "Allow SSH from my IP only"
+#######################################
+# AMI Data Sources
+#######################################
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
+#######################################
+# Security Groups
+#######################################
+# 1) Ansible Controller SG (public)
+resource "aws_security_group" "sg_ansible_controller" {
+  name        = "ansible-controller-sg"
+  description = "Allow SSH from your IP"
   vpc_id      = module.my_vpc.vpc_id
 
   ingress {
+    description = "SSH from local"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -33,6 +73,7 @@ resource "aws_security_group" "sg_bastion" {
   }
 
   egress {
+    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -40,25 +81,26 @@ resource "aws_security_group" "sg_bastion" {
   }
 
   tags = {
-    Name = "SG_Bastion"
+    Name = "SG_AnsibleController"
   }
 }
 
-# ✅ Security group for private instances
+# 2) Private Instances SG
 resource "aws_security_group" "sg_private" {
-  name        = "private-sg"  # ✅ FIXED: can't start with sg-
-  description = "Allow SSH only from the bastion"
+  name        = "private-sg"
+  description = "Allow SSH from Ansible Controller"
   vpc_id      = module.my_vpc.vpc_id
 
   ingress {
+    description     = "SSH from controller"
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    security_groups = [aws_security_group.sg_bastion.id]
-    description     = "SSH from bastion"
+    security_groups = [aws_security_group.sg_ansible_controller.id]
   }
 
   egress {
+    description = "Allow all outbound"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -70,29 +112,64 @@ resource "aws_security_group" "sg_private" {
   }
 }
 
-# Bastion host in public subnet
-resource "aws_instance" "bastion_host" {
-  ami                    = var.ami_id
-  instance_type          = var.bastion_instance_type
+#######################################
+# Ansible Controller Instance (public)
+#######################################
+resource "aws_instance" "ansible_controller" {
+  ami                    = data.aws_ami.ubuntu.id  # Using Ubuntu for the controller
+  instance_type          = var.controller_instance_type
   subnet_id              = module.my_vpc.public_subnets[0]
-  vpc_security_group_ids = [aws_security_group.sg_bastion.id]
+  vpc_security_group_ids = [aws_security_group.sg_ansible_controller.id]
 
   associate_public_ip_address = true
 
   tags = {
-    Name = "BastionHost"
+    Name = "AnsibleController"
+    Role = "ansible-controller"
   }
+
+  # Optional: bootstrap Ansible automatically
+  user_data = <<-EOF
+    #!/bin/bash
+    apt-get update -y
+    apt-get install -y software-properties-common python3-pip
+    apt-add-repository --yes --update ppa:ansible/ansible
+    apt-get update -y
+    apt-get install -y ansible
+    pip3 install boto3 botocore
+  EOF
 }
 
-# Private EC2 instances
-resource "aws_instance" "private_ec2" {
-  count                  = var.num_private_instances
-  ami                    = var.ami_id
+#######################################
+# Private Ubuntu Instances
+#######################################
+resource "aws_instance" "ubuntu_ec2" {
+  count                  = var.num_ubuntu_instances
+  ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.private_instance_type
-  subnet_id              = element(module.my_vpc.private_subnets, count.index % length(module.my_vpc.private_subnets))
+  subnet_id              = element(module.my_vpc.private_subnets, count.index)
   vpc_security_group_ids = [aws_security_group.sg_private.id]
 
   tags = {
-    Name = "PrivateEC2-${count.index}"
+    Name = "UbuntuEC2-${count.index}"
+    OS   = "ubuntu"
+    Role = "ansible-target"
+  }
+}
+
+#######################################
+# Private Amazon Linux Instances
+#######################################
+resource "aws_instance" "amazon_ec2" {
+  count                  = var.num_amazon_instances
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.private_instance_type
+  subnet_id              = element(module.my_vpc.private_subnets, count.index)
+  vpc_security_group_ids = [aws_security_group.sg_private.id]
+
+  tags = {
+    Name = "AmazonEC2-${count.index}"
+    OS   = "amazon"
+    Role = "ansible-target"
   }
 }

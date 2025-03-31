@@ -10,47 +10,45 @@ variable "vpc_cidr" {
 }
 
 variable "public_subnets" {
-  description = "List of public subnets"
-  type        = list(string)
-  default     = ["10.101.1.0/24", "10.101.2.0/24"]
+  type    = list(string)
+  default = ["10.101.1.0/24", "10.101.2.0/24"]
 }
 
 variable "private_subnets" {
-  description = "List of private subnets"
-  type        = list(string)
-  default     = ["10.101.3.0/24", "10.101.4.0/24"]
+  type    = list(string)
+  default = ["10.101.3.0/24", "10.101.4.0/24"]
 }
 
 variable "azs" {
-  description = "Availability Zones to use"
-  type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
-}
-
-variable "ami_id" {
-  description = "The custom AMI ID built by Packer"
-  type        = string
+  type    = list(string)
+  default = ["us-east-1a", "us-east-1b"]
 }
 
 variable "bastion_src_ip" {
-  description = "Public IP (CIDR) allowed to SSH to bastion"
+  description = "local IP (CIDR) for SSH access"
   type        = string
 }
 
-variable "bastion_instance_type" {
-  description = "Instance type for the bastion"
+variable "controller_instance_type" {
+  description = "Instance type for the Ansible Controller"
   type        = string
   default     = "t2.micro"
 }
 
 variable "private_instance_type" {
-  description = "Instance type for the private servers"
+  description = "Instance type for private servers"
   type        = string
   default     = "t2.micro"
 }
 
-variable "num_private_instances" {
-  description = "How many private instances to launch"
+variable "num_ubuntu_instances" {
+  description = "Number of Ubuntu servers"
   type        = number
-  default     = 6
+  default     = 3
+}
+
+variable "num_amazon_instances" {
+  description = "Number of Amazon Linux servers"
+  type        = number
+  default     = 3
 }
