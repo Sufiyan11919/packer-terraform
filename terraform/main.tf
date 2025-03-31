@@ -1,6 +1,3 @@
-#######################################
-# Provider & VPC Module (existing code)
-#######################################
 provider "aws" {
   region = var.region
 }
@@ -140,9 +137,6 @@ resource "aws_instance" "ansible_controller" {
   EOF
 }
 
-#######################################
-# Private Ubuntu Instances
-#######################################
 resource "aws_instance" "ubuntu_ec2" {
   count                  = var.num_ubuntu_instances
   ami                    = data.aws_ami.ubuntu.id
@@ -157,9 +151,7 @@ resource "aws_instance" "ubuntu_ec2" {
   }
 }
 
-#######################################
-# Private Amazon Linux Instances
-#######################################
+
 resource "aws_instance" "amazon_ec2" {
   count                  = var.num_amazon_instances
   ami                    = data.aws_ami.amazon_linux.id
